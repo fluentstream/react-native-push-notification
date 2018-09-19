@@ -7,11 +7,17 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import android.content.Intent;
+import android.content.IntentFilter;
+// import com.reactlibrary.RNPowerManagerPackage;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Set;
+
+import static com.dieam.reactnativepushnotification.modules.RNPushNotification.LOG_TAG;
 
 /**
  * Created by lambert on 2016/10/09.
@@ -30,6 +36,34 @@ public class RNPushNotificationJsDelivery {
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                     .emit(eventName, params);
         }
+        // Automatically start application when incoming call received.
+        if (mAppHidden) {
+            try {
+                String ns = mReactContext.getPackageName();
+                String cls = ns + ".MainActivity";
+
+                Intent intent = new Intent(mReactContext, Class.forName(cls));
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.EXTRA_DOCK_STATE_CAR);
+                intent.addCategory(Intent.CATEGORY_LAUNCHER);
+                intent.putExtra("foreground", true);
+
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.w(LOG_TAG, "Failed to open application on received call", e);
+            }
+        }
+
+        job(new Runnable() {
+            @Override
+            public void run() {
+                // Brighten screen at least 10 seconds
+                PowerManager.WakeLock wl = mPowerManager.newWakeLock(
+                        PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE | PowerManager.FULL_WAKE_LOCK,
+                        "incoming_call"
+                );
+                wl.acquire(10000);
+            }
+        });
     }
 
     void notifyRemoteFetch(Bundle bundle) {
